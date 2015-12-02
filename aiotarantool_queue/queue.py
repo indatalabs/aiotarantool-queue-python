@@ -5,7 +5,7 @@ Python bindings for Tarantool Queue.
 See also: https://github.com/tarantool/queue
 """
 
-import asyncio
+import trollius as asyncio
 import aiotarantool
 
 READY = "r"
@@ -87,11 +87,11 @@ class Task(object):
 
         Returns `True` is task is acked (task state is 'done' now).
         """
-        the_tuple = yield from self.queue.ack(self.tube, self.task_id)
+        the_tuple = yield From(self.queue.ack(self.tube, self.task_id))
 
         self.update_from_tuple(the_tuple)
 
-        return bool(self.state == DONE)
+        raise Return(bool(self.state == DONE))
 
     @asyncio.coroutine
     def release(self, delay=None):
@@ -103,14 +103,14 @@ class Task(object):
         Returns `True` is task is released (task state is 'ready'
         or 'delayed' if `delay` is set now).
         """
-        the_tuple = yield from self.queue.release(self.tube, self.task_id, delay=delay)
+        the_tuple = yield From(self.queue.release(self.tube, self.task_id, delay=delay))
 
         self.update_from_tuple(the_tuple)
 
         if delay is None:
-            return bool(self.state == READY)
+            raise Return(bool(self.state == READY))
         else:
-            return bool(self.state == DELAYED)
+            raise Return(bool(self.state == DELAYED))
 
     @asyncio.coroutine
     def peek(self):
@@ -119,11 +119,11 @@ class Task(object):
 
         Always returns `True`.
         """
-        the_tuple = yield from self.queue.peek(self.tube, self.task_id)
+        the_tuple = yield From(self.queue.peek(self.tube, self.task_id))
 
         self.update_from_tuple(the_tuple)
 
-        return True
+        raise Return(True)
 
     @asyncio.coroutine
     def delete(self):
@@ -132,11 +132,11 @@ class Task(object):
 
         Returns `True` is task is deleted.
         """
-        the_tuple = yield from self.queue.delete(self.tube, self.task_id)
+        the_tuple = yield From(self.queue.delete(self.tube, self.task_id))
 
         self.update_from_tuple(the_tuple)
 
-        return bool(self.state == DONE)
+        raise Return(bool(self.state == DONE))
 
 
 class Tube(object):
@@ -160,9 +160,9 @@ class Tube(object):
 
         Returns a `Task` object.
         """
-        the_tuple = yield from self.queue.put(self, data, ttl=ttl, ttr=ttr, delay=delay)
+        the_tuple = yield From(self.queue.put(self, data, ttl=ttl, ttr=ttr, delay=delay))
         if the_tuple.rowcount:
-            return Task.create_from_tuple(self, the_tuple)
+            raise Return(Task.create_from_tuple(self, the_tuple))
 
     @asyncio.coroutine
     def take(self, timeout=None):
@@ -173,10 +173,10 @@ class Tube(object):
 
         Returns either a `Task` object or `None`.
         """
-        the_tuple = yield from self.queue.take(self, timeout=timeout)
+        the_tuple = yield From(self.queue.take(self, timeout=timeout))
 
         if the_tuple.rowcount:
-            return Task.create_from_tuple(self, the_tuple)
+            raise Return(Task.create_from_tuple(self, the_tuple))
 
 
 class Queue(object):
@@ -272,8 +272,8 @@ class Queue(object):
         if params:
             args += (params,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def take(self, tube, timeout=None):
@@ -291,8 +291,8 @@ class Queue(object):
         if timeout is not None:
             args += (timeout,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def ack(self, tube, task_id):
@@ -308,8 +308,8 @@ class Queue(object):
         cmd = tube.cmd("ack")
         args = (task_id,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def release(self, tube, task_id, delay=None):
@@ -329,8 +329,8 @@ class Queue(object):
         if params:
             args += (params,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def peek(self, tube, task_id):
@@ -342,8 +342,8 @@ class Queue(object):
         cmd = tube.cmd("peek")
         args = (task_id,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def delete(self, tube, task_id):
@@ -355,8 +355,8 @@ class Queue(object):
         cmd = tube.cmd("delete")
         args = (task_id,)
 
-        res = yield from self.tnt.call(cmd, args)
-        return res
+        res = yield From(self.tnt.call(cmd, args))
+        raise Return(res)
 
     @asyncio.coroutine
     def drop(self, tube):
@@ -368,9 +368,9 @@ class Queue(object):
         cmd = tube.cmd("drop")
         args = ()
 
-        res = yield from self.tnt.call(cmd, args)
+        res = yield From(self.tnt.call(cmd, args))
 
-        return bool(res.return_code == 0)
+        raise Return(bool(res.return_code == 0))
 
     def tube(self, name):
         """
@@ -384,8 +384,8 @@ class Queue(object):
             tube = Tube(self, name)
             self.tubes[name] = tube
 
-        return tube
+        raise Return(tube)
 
     @asyncio.coroutine
     def close(self):
-        yield from self.tnt.close()
+        yield From(self.tnt.close())
