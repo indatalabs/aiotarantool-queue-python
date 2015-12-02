@@ -6,6 +6,7 @@ See also: https://github.com/tarantool/queue
 """
 
 import trollius as asyncio
+from trollius import From, Return
 import aiotarantool
 
 READY = "r"
