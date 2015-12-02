@@ -389,4 +389,6 @@ class Queue(object):
 
     @asyncio.coroutine
     def close(self):
-        yield From(self.tnt.close())
+        res = yield From(self.tnt.close())
+        raise Return(res)
+
